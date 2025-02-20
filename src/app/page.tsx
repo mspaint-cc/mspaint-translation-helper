@@ -46,7 +46,7 @@ export default function Home() {
   const [processing, setProcessing] = React.useState<boolean>(true);
   
   const [currentPage, setCurrentPage] = React.useState<number>(1);
-  const [itemsPerPage] = React.useState<number>(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState<number>(10);
   const [searchTerm, setSearchTerm] = React.useState<string>("");
   const [activeTab, setActiveTab] = React.useState<string>("missing");
 
@@ -446,28 +446,30 @@ loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946
                 <TabsTrigger value="existing">Existing Translations</TabsTrigger>
               </TabsList>
               
-              {/* Search bar */}
-              <div className="flex items-center border rounded-md pl-3 w-full max-sm:max-w-full max-w-md">
-                <Search className="h-4 w-4 text-muted-foreground mr-2" />
-                <Input
-                  placeholder="Search translations..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+              <div className="flex flex-row">
+                {/* Search bar */}
+                <div className="flex items-center border rounded-md pl-3 w-full max-sm:max-w-full max-w-md">
+                  <Search className="h-4 w-4 text-muted-foreground mr-2" />
+                  <Input
+                    placeholder="Search translations..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setSearchTerm("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -555,14 +557,29 @@ loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946
             </Pagination>
           )}
           
-          {/* Results counter */}
-          {!processing && filteredTranslations.length > 0 && (
-            <div className="text-sm text-muted-foreground mt-4">
-              Showing {Math.min(filteredTranslations.length, indexOfFirstItem + 1)}-
-              {Math.min(indexOfLastItem, filteredTranslations.length)} of{" "}
-              {filteredTranslations.length} results
+          <div className="flex flex-row items-center justify-between mt-4">
+            {/* Results counter */}
+            {!processing && filteredTranslations.length > 0 && (
+              <div className="text-sm text-muted-foreground mt-4">
+                Showing {Math.min(filteredTranslations.length, indexOfFirstItem + 1)}-
+                {Math.min(indexOfLastItem, filteredTranslations.length)} of{" "}
+                {filteredTranslations.length} results
+              </div>
+            )}
+
+            <div className="flex flex-row items-center gap-2">
+              <span className="text-muted-foreground text-xs">Items per page:</span>
+              <Input
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(parseInt(e.target.value));
+                }}
+                type="number"
+                min={1}
+                className="w-20 mr-2"
+              />
             </div>
-          )}
+          </div>
         </div>
       </Card>
     </main>
