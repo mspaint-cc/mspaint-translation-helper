@@ -239,25 +239,13 @@ export default function Home() {
     return items;
   };
 
-  const getFinalJSON = (mode: "strict" | "loose" = "strict") => {
-    // it gets all the translations (even the ones that are missing)
-    if (mode === "strict") {
-      const finalJSON: Record<string, string> = latestTranslation ?? {};
-      
-      for (const key in currentLanguageData) {
-        finalJSON[key] = currentLanguageData[key];
-      }
-  
-      for (const key in modifiedTranslations) {
-        finalJSON[key] = modifiedTranslations[key];
-      }
-      return finalJSON;
-    }
-
+  const getFinalJSON = () => {
     // it gets all that the person has finished
     const finalJSON: Record<string, string> = currentLanguageData ?? {};
     
     for (const key in modifiedTranslations) {
+      if (modifiedTranslations[key].trim() === "") continue;
+      
       finalJSON[key] = modifiedTranslations[key];
     }
 
@@ -305,7 +293,7 @@ export default function Home() {
               <DropdownMenuLabel className="flex flex-row gap-2">Testing <BugIcon /></DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON("loose");
+                const finalData = getFinalJSON();
                 const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
 getgenv().environment = "translator_env"
 getgenv().overrideLanguage = "${selectedLanguage}"
@@ -328,7 +316,7 @@ loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946
               </DropdownMenuItem>
 
               <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON("loose");
+                const finalData = getFinalJSON();
                 const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
 getgenv().environment = "translator_env"
 getgenv().overrideLanguage = "${selectedLanguage}"
@@ -417,14 +405,14 @@ loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946
               </DropdownMenuItem>
               <div className="mt-2" />
               <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON("loose");
+                const finalData = getFinalJSON();
                 navigator.clipboard.writeText(JSON.stringify(finalData, null, 2));
                 toast.success("Copied final translations to clipboard.");
               }}>
                 <span className="text-green-300">[Loose]</span>Copy to clipboard
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON("loose");
+                const finalData = getFinalJSON();
                 const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
