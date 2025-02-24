@@ -1,4 +1,5 @@
 "use client";
+
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, Scroll, Search, X } from "lucide-react";
@@ -110,9 +111,11 @@ export default function Home() {
 
   React.useEffect(() => {
     setProcessing(true);
+    if (currentLanguageData === undefined) return;
+    
     const missingTranslations: Record<string, string> = {};
     for (const key in latestTranslation) {
-      if (currentLanguageData === undefined || currentLanguageData[key] === undefined) {
+      if (currentLanguageData[key] === undefined || currentLanguageData[key].trim() === "") {
         missingTranslations[key] = latestTranslation[key];
       }
     }
