@@ -448,7 +448,7 @@ export default function Home() {
 
                 <DropdownMenuItem onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(modifiedTranslations, null, 2));
-                  toast.success("Copied missing translations to clipboard.");
+                  toast.success("Copied current translations to clipboard.");
                 }}>
                   <MinusCircle />
                   Copy Current Translations
@@ -460,7 +460,7 @@ export default function Home() {
                   link.href = url;
                   link.download = `${selectedLanguage}-edited.json`;
                   link.click();
-                  toast.success("Downloaded missing translations successfully.");
+                  toast.success("Downloaded current translations successfully.");
                 }}>
                   <DownloadIcon />
                   Download Current Translations
