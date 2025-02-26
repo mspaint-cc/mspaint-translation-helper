@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Languages, Loader2Icon, MinusCircle, Scroll, Search, X } from "lucide-react";
+import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Languages, MinusCircle, RefreshCcwIcon, Scroll, Search, X } from "lucide-react";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Editor from "@monaco-editor/react";
@@ -53,6 +53,10 @@ export default function Home() {
   } = useTranslation();
   
   const [key, setKey] = React.useState("");
+
+  const [clearTranslationsOpen, setClearTranslationsOpen] = React.useState(false);
+  const [clearTranslationTimeout, setClearTranslationTimeout] = React.useState<number>(5);
+
   const [importLanguageOpen, setImportLanguageOpen] = React.useState(false);
   const [importedLanguageRaw, setImportedLanguageRaw] = React.useState("");
   const [importedLanguageDataValid, setImportedLanguageDataValid] = React.useState(false);
@@ -73,6 +77,20 @@ export default function Home() {
     if (!importLanguageOpen) return;
     setImportedLanguageRaw(JSON.stringify(missingTranslations, null, 2));
   }, [importLanguageOpen]);
+
+  React.useEffect(() => {
+    if (!clearTranslationsOpen) return;
+
+    setClearTranslationTimeout(5);
+    const interval = setInterval(() => {
+      setClearTranslationTimeout((timeout) => {
+        if (timeout === 1) {
+          clearInterval(interval);
+        }
+        return timeout - 1;
+      });
+    }, 1000);
+  }, [clearTranslationsOpen]);
 
   React.useEffect(() => {    
     try {
@@ -339,6 +357,28 @@ export default function Home() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog onOpenChange={(open) => setClearTranslationsOpen(open)} open={clearTranslationsOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Translations</AlertDialogTitle>
+            <AlertDialogDescription>
+              Clear current translations? This will permanently delete all modifications that you have made on this site. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant={"destructive"} disabled={clearTranslationTimeout > 0} onClick={() => {
+              setModifiedTranslations({});
+              setLastModifiedTranslations({});
+              setCurrentPage(1);
+              setSearchTerm("");
+              setClearTranslationsOpen(false);
+            }}>Clear Translations {clearTranslationTimeout > 0 ? `(${clearTranslationTimeout}s)` : ""}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -470,8 +510,13 @@ export default function Home() {
                 <DropdownMenuSeparator />
                 
                 <DropdownMenuItem onClick={() => {setImportLanguageOpen(true)}}>
-                  <Loader2Icon />
+                  <DownloadIcon />
                   Import Translation
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => {setClearTranslationsOpen(true)}}>
+                  <RefreshCcwIcon />
+                  Clear Translations
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
