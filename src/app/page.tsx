@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Loader2Icon, MinusCircle, Scroll, Search, X } from "lucide-react";
+import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Languages, Loader2Icon, MinusCircle, Scroll, Search, X } from "lucide-react";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Editor from "@monaco-editor/react";
@@ -421,7 +421,7 @@ export default function Home() {
                   Download test script
                 </DropdownMenuItem>
 
-                <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Utilities <HammerIcon /></DropdownMenuLabel>
+                <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Translation Data <Languages /></DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
                 <DropdownMenuItem onClick={() => {
@@ -443,6 +443,31 @@ export default function Home() {
                   <DownloadIcon />
                   Download Missing Translations
                 </DropdownMenuItem>
+
+                <div className="mt-2" />
+
+                <DropdownMenuItem onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(modifiedTranslations, null, 2));
+                  toast.success("Copied missing translations to clipboard.");
+                }}>
+                  <MinusCircle />
+                  Copy Current Translations
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const blob = new Blob([JSON.stringify(modifiedTranslations, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}-edited.json`;
+                  link.click();
+                  toast.success("Downloaded missing translations successfully.");
+                }}>
+                  <DownloadIcon />
+                  Download Current Translations
+                </DropdownMenuItem>
+
+                <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Utilities <HammerIcon /></DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 
                 <DropdownMenuItem onClick={() => {setImportLanguageOpen(true)}}>
                   <Loader2Icon />
