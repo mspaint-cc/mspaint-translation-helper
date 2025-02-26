@@ -2,9 +2,10 @@
 
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, Scroll, Search, X } from "lucide-react";
+import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Loader2Icon, MinusCircle, Scroll, Search, X } from "lucide-react";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Editor from "@monaco-editor/react";
 import {
   Pagination,
   PaginationContent,
@@ -17,6 +18,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import {
   DropdownMenu,
@@ -42,6 +53,10 @@ export default function Home() {
   } = useTranslation();
   
   const [key, setKey] = React.useState("");
+  const [importLanguageOpen, setImportLanguageOpen] = React.useState(false);
+  const [importedLanguageRaw, setImportedLanguageRaw] = React.useState("");
+  const [importedLanguageDataValid, setImportedLanguageDataValid] = React.useState(false);
+  const [importedLanguageDataError, setImportedLanguageDataError] = React.useState("");
 
   const [missingTranslations, setMissingTranslations] = React.useState<Record<string, string>>({});
   const [processing, setProcessing] = React.useState<boolean>(true);
@@ -54,6 +69,22 @@ export default function Home() {
   const [lastModifiedTranslations, setLastModifiedTranslations] = React.useState<Record<string, string>>({});
   const [modifiedTranslations, setModifiedTranslations] = React.useState<Record<string, string>>({});
   
+  React.useEffect(() => {
+    if (!importLanguageOpen) return;
+    setImportedLanguageRaw(JSON.stringify(missingTranslations, null, 2));
+  }, [importLanguageOpen]);
+
+  React.useEffect(() => {    
+    try {
+      JSON.parse(importedLanguageRaw);
+      setImportedLanguageDataValid(true);
+      setImportedLanguageDataError("");
+    } catch (error) {
+      setImportedLanguageDataValid(false);
+      setImportedLanguageDataError((error as Error).message.replace("JSON.parse: ", ""));
+    }
+  }, [importedLanguageRaw]);
+
   React.useEffect(() => {
     try {
       const savedData = localStorage.getItem(`modifiedTranslations-${selectedLanguage}`);
@@ -115,7 +146,7 @@ export default function Home() {
     
     const missingTranslations: Record<string, string> = {};
     for (const key in latestTranslation) {
-      if (currentLanguageData[key] === undefined || currentLanguageData[key].trim() === "") {
+      if (currentLanguageData[key] === undefined || currentLanguageData[key].trim() === "" && selectedLanguage !== "en") {
         missingTranslations[key] = latestTranslation[key];
       }
     }
@@ -266,6 +297,48 @@ export default function Home() {
         You are currently managing the {normalizedTranslations[selectedLanguage].EnglishName} translation.<br />
         Your changes will be saved automatically in the background.
       </p>
+
+      <AlertDialog onOpenChange={(open) => setImportLanguageOpen(open)} open={importLanguageOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import Language</AlertDialogTitle>
+            <AlertDialogDescription>
+              Import language data from JSON
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <Editor
+            height={300}
+            language="json"
+            theme="vs-dark"
+            options={{
+              minimap: { enabled: false }
+            }}
+            value={importedLanguageRaw}
+            onChange={(newValue) => setImportedLanguageRaw(newValue ?? "")}
+          />
+          <p>{importedLanguageDataValid ? <span className="text-green-500 text-xs text-right">Valid JSON</span> : <span className="text-red-500 text-xs text-right">Invalid JSON ({importedLanguageDataError})</span>}</p>
+          <div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={!importedLanguageDataValid} onClick={() => {
+                const importedData = JSON.parse(importedLanguageRaw);
+                const existingData = currentLanguageData ?? {};
+                
+                for (const key in importedData) {
+                  if (existingData[key] === importedData[key]) continue;
+                  
+                  const value = importedData[key];
+                  existingData[key] = value;
+                }
+
+                setModifiedTranslations(existingData);
+              }}>Import</AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -286,148 +359,185 @@ export default function Home() {
             </CardDescription>
           </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size={"sm"} disabled={selectedLanguage === "en"}>
-                Export/Test Language <FileJsonIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel className="flex flex-row gap-2">Testing <BugIcon /></DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
-                const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
-getgenv().environment = "translator_env"
-getgenv().overrideLanguage = "${selectedLanguage}"
-getgenv().language = {
-    ["${selectedLanguage}"] = {
-        NativeName = "${normalizedTranslations[selectedLanguage].NativeName}",
-        EnglishName = "${normalizedTranslations[selectedLanguage].EnglishName}",
-        Path = "${selectedLanguage}-dev.json"
-    }
-}
+          <div className="flex flex-row gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size={"sm"} disabled={selectedLanguage === "en"} variant={"outline"}>
+                  Utility <HammerIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel className="flex flex-row gap-2">Testing <BugIcon /></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
+                  const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
+  getgenv().environment = "translator_env"
+  getgenv().overrideLanguage = "${selectedLanguage}"
+  getgenv().language = {
+      ["${selectedLanguage}"] = {
+          NativeName = "${normalizedTranslations[selectedLanguage].NativeName}",
+          EnglishName = "${normalizedTranslations[selectedLanguage].EnglishName}",
+          Path = "${selectedLanguage}-dev.json"
+      }
+  }
 
-script_key="${key.trim() === "" ? "script key here" : key}";
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()`
+  script_key="${key.trim() === "" ? "script key here" : key}";
+  loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()`
+                  
+                  navigator.clipboard.writeText(script);
+                  toast.success("Copied test script to clipboard.");
+                }}>
+                  <Scroll />
+                  Copy test script to clipboard
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
+                  const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
+  getgenv().environment = "translator_env"
+  getgenv().overrideLanguage = "${selectedLanguage}"
+  getgenv().language = {
+      ["${selectedLanguage}"] = {
+          NativeName = "${normalizedTranslations[selectedLanguage].NativeName}",
+          EnglishName = "${normalizedTranslations[selectedLanguage].EnglishName}",
+          Path = "${selectedLanguage}-dev.json"
+      }
+  }
+
+  script_key="${key.trim() === "" ? "script key here" : key}";
+  loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()`
+                  
+                  const blob = new Blob([script], {type: "text/plain"});
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}-dev.lua`;
+                  document.body.appendChild(link);
+                  link.click();
+                  toast.success("Downloaded test script.");
+                }}>
+                  <Scroll />
+                  Download test script
+                </DropdownMenuItem>
+
+                <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Utilities <HammerIcon /></DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 
-                navigator.clipboard.writeText(script);
-                toast.success("Copied test script to clipboard.");
-              }}>
-                <Scroll />
-                Copy test script to clipboard
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
-                const script = `writefile("${selectedLanguage}-dev.json", [[${JSON.stringify(finalData)}]])
-getgenv().environment = "translator_env"
-getgenv().overrideLanguage = "${selectedLanguage}"
-getgenv().language = {
-    ["${selectedLanguage}"] = {
-        NativeName = "${normalizedTranslations[selectedLanguage].NativeName}",
-        EnglishName = "${normalizedTranslations[selectedLanguage].EnglishName}",
-        Path = "${selectedLanguage}-dev.json"
-    }
-}
-
-script_key="${key.trim() === "" ? "script key here" : key}";
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()`
+                <DropdownMenuItem onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(missingTranslations, null, 2));
+                  toast.success("Copied missing translations to clipboard.");
+                }}>
+                  <MinusCircle />
+                  Copy Missing Translations
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const blob = new Blob([JSON.stringify(missingTranslations, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}-missing.json`;
+                  link.click();
+                  toast.success("Downloaded missing translations successfully.");
+                }}>
+                  <DownloadIcon />
+                  Download Missing Translations
+                </DropdownMenuItem>
                 
-                const blob = new Blob([script], {type: "text/plain"});
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = `${selectedLanguage}-dev.lua`;
-                document.body.appendChild(link);
-                link.click();
-                toast.success("Downloaded test script.");
-              }}>
-                <Scroll />
-                Download test script
-              </DropdownMenuItem>
-              
+                <DropdownMenuItem onClick={() => {setImportLanguageOpen(true)}}>
+                  <Loader2Icon />
+                  Import Translation
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size={"sm"} disabled={selectedLanguage === "en"}>
+                  Export Language <FileJsonIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel className="flex flex-row gap-2">Export <DownloadIcon /></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
 
-              <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Export <DownloadIcon /></DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
+                  const translations = Object.keys(finalData);
+                  for (const translation of translations) {
+                    if (!translation.includes('%s'))
+                      continue;
 
-                const translations = Object.keys(finalData);
-                for (const translation of translations) {
-                  if (!translation.includes('%s'))
-                    continue;
+                    const translationValue = finalData[translation];
 
-                  const translationValue = finalData[translation];
-
-                  const originalFormattedCount = translation.split('%s').length - 1;
-                  const newFormattedCount = translationValue.split('%s').length - 1;
-                  
-                  console.log(translation, translationValue);
-                  console.log(originalFormattedCount, newFormattedCount);
-                  
-                  if (originalFormattedCount !== newFormattedCount) {
-                    toast.error(`The translation '${translation}' Expected ${originalFormattedCount} '%s' but got ${newFormattedCount}.\nThe problematic translation was copied to clipboard.`);
-                    navigator.clipboard.writeText(translation);
-                    return;
+                    const originalFormattedCount = translation.split('%s').length - 1;
+                    const newFormattedCount = translationValue.split('%s').length - 1;
+                    
+                    console.log(translation, translationValue);
+                    console.log(originalFormattedCount, newFormattedCount);
+                    
+                    if (originalFormattedCount !== newFormattedCount) {
+                      toast.error(`The translation '${translation}' Expected ${originalFormattedCount} '%s' but got ${newFormattedCount}.\nThe problematic translation was copied to clipboard.`);
+                      navigator.clipboard.writeText(translation);
+                      return;
+                    }
                   }
-                }
 
-                navigator.clipboard.writeText(JSON.stringify(finalData, null, 2));
-                toast.success("Copied final translations to clipboard.");
-              }}>
-                <span className="text-red-300">[Strict]</span> Copy to clipboard
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
+                  navigator.clipboard.writeText(JSON.stringify(finalData, null, 2));
+                  toast.success("Copied final translations to clipboard.");
+                }}>
+                  <span className="text-red-300">[Strict]</span> Copy to clipboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
 
-                const translations = Object.keys(finalData);
-                for (const translation of translations) {
-                  const translationValue = finalData[translation];
+                  const translations = Object.keys(finalData);
+                  for (const translation of translations) {
+                    const translationValue = finalData[translation];
 
-                  const originalFormattedCount = translation.split('%s').length - 1;
-                  const newFormattedCount = translationValue.split('%s').length - 1;
-                  
-                  if (originalFormattedCount !== newFormattedCount) {
-                    toast.error(`The translation '${translation}' Expected ${originalFormattedCount} '%s' but got ${newFormattedCount}.\nThe problematic translation was copied to clipboard.`);
-                    navigator.clipboard.writeText(translation);
-                    return;
+                    const originalFormattedCount = translation.split('%s').length - 1;
+                    const newFormattedCount = translationValue.split('%s').length - 1;
+                    
+                    if (originalFormattedCount !== newFormattedCount) {
+                      toast.error(`The translation '${translation}' Expected ${originalFormattedCount} '%s' but got ${newFormattedCount}.\nThe problematic translation was copied to clipboard.`);
+                      navigator.clipboard.writeText(translation);
+                      return;
+                    }
                   }
-                }
 
-                const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = `${selectedLanguage}.json`;
-                document.body.appendChild(link);
-                link.click();
-              }}>
-                <span className="text-red-300">[Strict]</span>
-                Save to file (.json)
-              </DropdownMenuItem>
-              <div className="mt-2" />
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
-                navigator.clipboard.writeText(JSON.stringify(finalData, null, 2));
-                toast.success("Copied final translations to clipboard.");
-              }}>
-                <span className="text-green-300">[Loose]</span>Copy to clipboard
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                const finalData = getFinalJSON();
-                const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = `${selectedLanguage}-loose.json`;
-                document.body.appendChild(link);
-                link.click();
-              }}>
-                <span className="text-green-300">[Loose]</span>Save to file (.json)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}.json`;
+                  document.body.appendChild(link);
+                  link.click();
+                }}>
+                  <span className="text-red-300">[Strict]</span>
+                  Save to file (.json)
+                </DropdownMenuItem>
+                <div className="mt-2" />
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
+                  navigator.clipboard.writeText(JSON.stringify(finalData, null, 2));
+                  toast.success("Copied final translations to clipboard.");
+                }}>
+                  <span className="text-green-300">[Loose]</span>Copy to clipboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const finalData = getFinalJSON();
+                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}-loose.json`;
+                  document.body.appendChild(link);
+                  link.click();
+                }}>
+                  <span className="text-green-300">[Loose]</span>Save to file (.json)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardHeader>
         <div className="p-6">
           <Tabs defaultValue="missing" onValueChange={handleTabChange} className="w-full">
