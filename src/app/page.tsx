@@ -408,7 +408,7 @@ export default function Home() {
   script_key="${key.trim() === "" ? "script key here" : key}";
   loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/002c19202c9946e6047b0c6e0ad51f84.lua"))()`
                   
-                  const blob = new Blob([script], {type: "text/plain"});
+                  const blob = new Blob([script], {type: "text/plain;charset=utf-8"});
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
@@ -432,7 +432,7 @@ export default function Home() {
                   Copy Missing Translations
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
-                  const blob = new Blob([JSON.stringify(missingTranslations, null, 2)], { type: "application/json" });
+                  const blob = new Blob([JSON.stringify(missingTranslations, null, 2)], { type: "application/json;charset=utf-8" });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
@@ -454,7 +454,7 @@ export default function Home() {
                   Copy Current Translations
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
-                  const blob = new Blob([JSON.stringify(modifiedTranslations, null, 2)], { type: "application/json" });
+                  const blob = new Blob([JSON.stringify(modifiedTranslations, null, 2)], { type: "application/json;charset=utf-8" });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
@@ -529,7 +529,7 @@ export default function Home() {
                     }
                   }
 
-                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
+                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json;charset=utf-8"});
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
@@ -550,7 +550,7 @@ export default function Home() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   const finalData = getFinalJSON();
-                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json"});
+                  const blob = new Blob([JSON.stringify(finalData, null, 2)], {type: "application/json;charset=utf-8"});
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
