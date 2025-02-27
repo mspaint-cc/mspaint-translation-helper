@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, HammerIcon, Languages, MinusCircle, RefreshCcwIcon, Scroll, Search, X } from "lucide-react";
+import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, GithubIcon, HammerIcon, Languages, MinusCircle, RefreshCcwIcon, Scroll, Search, SendIcon, X } from "lucide-react";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Editor from "@monaco-editor/react";
@@ -40,6 +40,8 @@ import {
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { get_key } from "@/server/datahandler";
+import { publish_translations } from "@/server/githubhandler";
+import { useSession } from "next-auth/react"
 
 
 export default function Home() {
@@ -51,6 +53,8 @@ export default function Home() {
     currentLanguageDataLoading, 
     latestTranslation 
   } = useTranslation();
+
+  const { data: session } = useSession()
   
   const [key, setKey] = React.useState("");
 
@@ -61,6 +65,8 @@ export default function Home() {
   const [importedLanguageRaw, setImportedLanguageRaw] = React.useState("");
   const [importedLanguageDataValid, setImportedLanguageDataValid] = React.useState(false);
   const [importedLanguageDataError, setImportedLanguageDataError] = React.useState("");
+
+  const [publishOpen, setPublishOpen] = React.useState(false);
 
   const [missingTranslations, setMissingTranslations] = React.useState<Record<string, string>>({});
   const [processing, setProcessing] = React.useState<boolean>(true);
@@ -134,9 +140,7 @@ export default function Home() {
   }, []);
 
   React.useEffect(() => {
-    const isDifferent = Object.keys(modifiedTranslations).some(
-      key => modifiedTranslations[key] !== lastModifiedTranslations[key]
-    );
+    const isDifferent = Object.keys(modifiedTranslations).length !== Object.keys(lastModifiedTranslations).length || Object.keys(modifiedTranslations).some(key => modifiedTranslations[key] !== lastModifiedTranslations[key]);
 
     if (isDifferent) {
       const timeoutId = setTimeout(() => {
@@ -371,11 +375,83 @@ export default function Home() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button variant={"destructive"} disabled={clearTranslationTimeout > 0} onClick={() => {
               setModifiedTranslations({});
-              setLastModifiedTranslations({});
+              localStorage.setItem(`modifiedTranslations-${selectedLanguage}`, JSON.stringify({}));
               setCurrentPage(1);
               setSearchTerm("");
               setClearTranslationsOpen(false);
             }}>Clear Translations {clearTranslationTimeout > 0 ? `(${clearTranslationTimeout}s)` : ""}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog onOpenChange={(open) => setPublishOpen(open)} open={publishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Publish & update the translations on GitHub as {session?.user?.name ?? "anonymous"}? You have changed over {Object.keys(modifiedTranslations).length} translations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              toast.promise(publish_translations(getFinalJSON(), selectedLanguage), {
+                loading: "Publishing changes...",
+                success: (data) => {
+                  if (!data || !data.success) {
+                    throw new Error(JSON.stringify((data?.message ?? { message: { message: "Failed to publish!" } })));
+                  }
+
+                  const toastData: { message: string; description: string; action?: { label: string; onClick: () => void } } = {
+                    message: data.message.message,
+                    description: data.message.description,
+                  };
+
+                  if (data.message.action) {
+                    toastData.action = {
+                      label: data.message.action.label,
+                      onClick: () => {
+                        if (data.message.action && data.message.action.onClick === "OPEN_LINK") {
+                          window.open(data.message.action.href);
+                        } else {
+                          if (data.message.action) {
+                            console.error("Unknown action type:", data.message.action.onClick);
+                          }
+                        }
+                      }
+                    };
+                  }
+
+                  return toastData;
+                },
+                error: (error) => {
+                  const errorData = JSON.parse(error.message);
+                  
+                  const toastData: { message: string; description: string; action?: { label: string; onClick: () => void } } = {
+                    message: errorData.message.message,
+                    description: errorData.message.description,
+                  };
+
+                  if (errorData.message.action) {
+                    toastData.action = {
+                      label: errorData.message.action.label,
+                      onClick: () => {
+                        if (errorData.message.action && errorData.message.action.onClick === "OPEN_LINK") {
+                          window.open(errorData.message.action.href);
+                        } else {
+                          if (errorData.message.action) {
+                            console.error("Unknown action type:", errorData.message.action.onClick);
+                          }
+                        }
+                      }
+                    };
+                  }
+
+                  return toastData;
+                }
+              });
+            }}>Publish</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -523,7 +599,7 @@ export default function Home() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size={"sm"} disabled={selectedLanguage === "en"}>
-                  Export Language <FileJsonIcon />
+                  Export/Publish Language <FileJsonIcon />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -604,6 +680,25 @@ export default function Home() {
                   link.click();
                 }}>
                   <span className="text-green-300">[Loose]</span>Save to file (.json)
+                </DropdownMenuItem>
+
+                <DropdownMenuLabel className="flex flex-row mt-2 gap-2">Publish <SendIcon /></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem onClick={() => {
+                  if (Object.keys(modifiedTranslations).length === 0) {
+                    toast.error("You have not made any changes.");
+                    return;
+                  }
+
+                  if (!session) {
+                    toast.error("You must be logged in to publish changes. Go to the settings tab and log in.");
+                    return;
+                  }
+
+                  setPublishOpen(true);
+                }}>
+                  <GithubIcon /> Publish changes to GitHub
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

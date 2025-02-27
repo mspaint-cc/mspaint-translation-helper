@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner"
 
 import "./globals.css";
+import { SessionProvider } from "next-auth/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -34,7 +35,9 @@ export default function RootLayout({
                   <h1>Translation Helper</h1>
                 </div>
                 <div className="py-5 w-full">
-                  {children}
+                  <SessionProvider>
+                    {children}
+                  </SessionProvider>
                 </div>
             </main>
           </SidebarProvider>
