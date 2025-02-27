@@ -396,7 +396,25 @@ export default function Home() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              toast.promise(publish_translations(getFinalJSON(), selectedLanguage), {
+              const finalData = getFinalJSON();
+              const translations = Object.keys(finalData);
+              for (const translation of translations) {
+                if (!translation.includes('%s'))
+                  continue;
+
+                const translationValue = finalData[translation];
+
+                const originalFormattedCount = translation.split('%s').length - 1;
+                const newFormattedCount = translationValue.split('%s').length - 1;
+                
+                if (originalFormattedCount !== newFormattedCount) {
+                  toast.error(`The translation '${translation}' Expected ${originalFormattedCount} '%s' but got ${newFormattedCount}.\nThe problematic translation was copied to clipboard.`);
+                  navigator.clipboard.writeText(translation);
+                  return;
+                }
+              }
+
+              toast.promise(publish_translations(finalData, selectedLanguage), {
                 loading: "Publishing changes...",
                 success: (data) => {
                   if (!data || !data.success) {

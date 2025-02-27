@@ -25,7 +25,7 @@ export default function RootLayout({
       <body
         className={`${inter.className}`}
       >
-        <Toaster />
+        <Toaster richColors />
         <TranslationProvider>
           <SidebarProvider>
             <AppSidebar />
