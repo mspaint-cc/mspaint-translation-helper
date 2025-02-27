@@ -3,6 +3,12 @@
 import { auth } from "@/auth";
 import { Session } from "next-auth";
 
+interface Fork {
+    owner: {
+        login: string;
+    };
+}
+
 /*
 Ignore this im just breaking down the thingy so this less complicated for me to implement
 
@@ -43,29 +49,61 @@ export async function publish_translations(translations: Record<string, string>,
     const hasWriteAccess = repoData.permissions?.push;
     
     if (!hasWriteAccess) {
-        // Create a fork
-        const forkResponse = await fetch("https://api.github.com/repos/mspaint-cc/translations/forks", {
+        // Check if user already has a fork
+        const forksResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/forks`, {
+            headers: {
+            Authorization: `token ${session?.accessToken}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Accept": "application/vnd.github+json",
+            }
+        });
+        
+        const forks = await forksResponse.json();
+        const userFork = forks.find((fork: Fork) => fork.owner.login === username);
+        
+        // If user doesn't have a fork, create one else sync fork with upstream
+        if (!userFork) {
+            const forkResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/forks`, {
             method: "POST",
             headers: {
                 Authorization: `token ${session?.accessToken}`,
                 "X-GitHub-Api-Version": "2022-11-28",
                 "Accept": "application/vnd.github+json",
             }
-        });
-        
-        if (!forkResponse.ok) {
+            });
+            
+            if (forkResponse.status !== 202) {
             return {
                 success: false,
                 message: {
-                    message: "Failed to create fork",
-                    description: "Failed to fork the translations repository. Please try again later."
+                message: "Failed to fork repository",
+                description: `Failed to fork the repository (${forkResponse.status}). Please try again later.`
                 }
-            };
+            }
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        } else {
+            try {
+                await fetch(`https://api.github.com/repos/${username}/translations/merge-upstream`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `token ${session?.accessToken}`,
+                        "X-GitHub-Api-Version": "2022-11-28",
+                        "Accept": "application/vnd.github+json",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        branch: "main"
+                    })
+                });
+            } catch (e) {
+                console.error("Failed to sync fork with upstream", e);
+            }
         }
         
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        // Get the ref to create a branch from
+        // Create a new branch for PR
+        // First, get the current commit SHA from main
         const refResponse = await fetch(`https://api.github.com/repos/${username}/translations/git/refs/heads/main`, {
             headers: {
                 Authorization: `token ${session?.accessToken}`,
@@ -74,18 +112,18 @@ export async function publish_translations(translations: Record<string, string>,
             }
         });
         
-        if (!refResponse.ok) {
+        if (refResponse.status !== 200) {
             return {
                 success: false,
                 message: {
                     message: "Failed to get reference",
-                    description: "Failed to get the main branch reference. Please try again later."
+                    description: `Failed to get reference to main branch (${refResponse.status}). Please try again later.`
                 }
-            };
+            }
         }
         
         const refData = await refResponse.json();
-        const latestCommitSha = refData.object.sha;
+        const mainSha = refData.object.sha;
         
         // Create a new branch
         const branchName = `update-${lang}-translations-${Date.now()}`;
@@ -99,21 +137,21 @@ export async function publish_translations(translations: Record<string, string>,
             },
             body: JSON.stringify({
                 ref: `refs/heads/${branchName}`,
-                sha: latestCommitSha
+                sha: mainSha
             })
         });
         
-        if (!createBranchResponse.ok) {
+        if (createBranchResponse.status !== 201) {
             return {
                 success: false,
                 message: {
                     message: "Failed to create branch",
-                    description: "Failed to create a new branch. Please try again later."
+                    description: `Failed to create branch for changes (${createBranchResponse.status}). Please try again later.`
                 }
-            };
+            }
         }
         
-        // Get the file content
+        // Get current file if it exists
         const fileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${lang}.json`, {
             headers: {
                 Authorization: `token ${session?.accessToken}`,
@@ -123,12 +161,12 @@ export async function publish_translations(translations: Record<string, string>,
         });
         
         let fileSha;
-        if (fileResponse.ok) {
+        if (fileResponse.status === 200) {
             const fileData = await fileResponse.json();
             fileSha = fileData.sha;
         }
         
-        // Update file in fork
+        // Update the file in the new branch
         const fileContent = JSON.stringify(translations, null, 2);
         const updateFileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${lang}.json`, {
             method: "PUT",
@@ -141,23 +179,23 @@ export async function publish_translations(translations: Record<string, string>,
             body: JSON.stringify({
                 message: `feat: updated ${lang} translation`,
                 content: Buffer.from(fileContent).toString("base64"),
-                branch: branchName,
-                sha: fileSha
+                sha: fileSha, // Only included if file exists
+                branch: branchName
             })
         });
         
-        if (!updateFileResponse.ok) {
+        if (updateFileResponse.status !== 200 && updateFileResponse.status !== 201) {
             return {
                 success: false,
                 message: {
                     message: "Failed to update file",
-                    description: "Failed to update the translations file in your fork. Please try again later."
+                    description: `Failed to update translations file (${updateFileResponse.status}). Please try again later.`
                 }
-            };
+            }
         }
         
-        // Create a PR
-        const prResponse = await fetch("https://api.github.com/repos/mspaint-cc/translations/pulls", {
+        // Create pull request
+        const prResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/pulls`, {
             method: "POST",
             headers: {
                 Authorization: `token ${session?.accessToken}`,
@@ -167,35 +205,36 @@ export async function publish_translations(translations: Record<string, string>,
             },
             body: JSON.stringify({
                 title: `Update ${lang} translations`,
-                body: `This PR updates translations for ${lang}`,
+                body: `This PR updates the translations for ${lang}.`,
                 head: `${username}:${branchName}`,
                 base: "main"
             })
         });
         
-        if (!prResponse.ok) {
+        if (prResponse.status !== 201) {
             return {
                 success: false,
                 message: {
                     message: "Failed to create PR",
-                    description: "Failed to create a pull request. Please try again later."
+                    description: `Failed to create pull request (${prResponse.status}). Please try again later.`
                 }
-            };
+            }
         }
         
         const prData = await prResponse.json();
+        
         return {
             success: true,
             message: {
                 message: "Your changes are in review!",
-                description: "We have forked the repo and created a PR. Please wait for the changes to be reviewed.",
+                description: "We have created a PR with your translation changes.",
                 action: {
                     label: "View PR",
                     onClick: "OPEN_LINK",
                     href: prData.html_url
                 }
             }
-        };
+        }
     };
 
     // Get file sha
