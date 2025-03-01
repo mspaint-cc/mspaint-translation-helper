@@ -411,6 +411,7 @@ export default function Home() {
             <AlertDialogAction onClick={() => {
               const finalData = getFinalJSON();
               const translations = Object.keys(finalData);
+
               for (const translation of translations) {
                 if (!translation.includes('%s'))
                   continue;
@@ -620,14 +621,12 @@ export default function Home() {
                 <DropdownMenuSeparator />
                 
                 <DropdownMenuItem onClick={() => {
-                  const modTranslations = modifiedTranslations;
-                  
-                  for (const key in modTranslations) {
+                  for (const key in modifiedTranslations) {
                     if (orphanedTranslations[key] !== undefined) 
-                      delete modTranslations[key];
+                      delete modifiedTranslations[key];
                   }
 
-                  setModifiedTranslations(modTranslations);
+                  setModifiedTranslations(modifiedTranslations);
                   setOrphanedTranslations({});
                 }}>
                   <TrashIcon />
@@ -735,10 +734,11 @@ export default function Home() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem onClick={() => {
-                  if (Object.keys(modifiedTranslations).length === 0) {
+                  // console.log(modifiedTranslations)
+                  /*if (Object.keys(modifiedTranslations).length === 0) {
                     toast.error("You have not made any changes.");
                     return;
-                  }
+                  }*/
 
                   if (!session) {
                     toast.error("You must be logged in to publish changes. Go to the settings tab and log in.");
