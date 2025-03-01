@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/components/translation-provider";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, GithubIcon, HammerIcon, Languages, MinusCircle, RefreshCcwIcon, Scroll, Search, SendIcon, X } from "lucide-react";
+import { ArrowRight, BugIcon, DownloadIcon, FileJsonIcon, GithubIcon, HammerIcon, Languages, MinusCircle, RefreshCcwIcon, Scroll, Search, SendIcon, TrashIcon, X } from "lucide-react";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Editor from "@monaco-editor/react";
@@ -69,6 +69,8 @@ export default function Home() {
   const [publishOpen, setPublishOpen] = React.useState(false);
 
   const [missingTranslations, setMissingTranslations] = React.useState<Record<string, string>>({});
+  const [orphanedTranslations, setOrphanedTranslations] = React.useState<Record<string, string>>({});
+  
   const [processing, setProcessing] = React.useState<boolean>(true);
   
   const [currentPage, setCurrentPage] = React.useState<number>(1);
@@ -166,13 +168,24 @@ export default function Home() {
     setProcessing(true);
     if (currentLanguageData === undefined) return;
     
-    const missingTranslations: Record<string, string> = {};
+    const missingTranslationsNew: Record<string, string> = {};
+    const orphanedTranslationsNew: Record<string, string> = {};
+
     for (const key in latestTranslation) {
       if (currentLanguageData[key] === undefined || currentLanguageData[key].trim() === "" && selectedLanguage !== "en") {
-        missingTranslations[key] = latestTranslation[key];
+        missingTranslationsNew[key] = latestTranslation[key];
       }
     }
-    setMissingTranslations(missingTranslations);
+
+    for (const key in currentLanguageData) {
+      if (latestTranslation[key] === undefined) {
+        orphanedTranslationsNew[key] = currentLanguageData[key];
+      }
+    }
+
+    setMissingTranslations(missingTranslationsNew);
+    setOrphanedTranslations(orphanedTranslationsNew);
+
     setProcessing(false);
   }, [currentLanguageData, latestTranslation]);
 
@@ -480,14 +493,17 @@ export default function Home() {
             <CardTitle>Edit Translations</CardTitle>
             <CardDescription>
               {processing ? "Processing..." : (
-                <>
-                  You are missing <span className={cn("font-bold",
-                    Object.keys(missingTranslations).length > 100 ? 'text-red-500' :
-                    Object.keys(missingTranslations).length > 50 ? 'text-yellow-500' :
-                    Object.keys(missingTranslations).length < 25 ? 'text-green-500' :
-                    ''
-                  )}>{Object.keys(missingTranslations).length}</span> translations.
-                </>
+                  activeTab == "orphaned" ? 
+                  <>
+                    You have <span className={cn("font-bold")}>{Object.keys(orphanedTranslations).length}</span> orphaned translations.
+                  </> : <>
+                    You are missing <span className={cn("font-bold",
+                      Object.keys(missingTranslations).length > 100 ? 'text-red-500' :
+                      Object.keys(missingTranslations).length > 50 ? 'text-yellow-500' :
+                      Object.keys(missingTranslations).length < 25 ? 'text-green-500' :
+                      ''
+                    )}>{Object.keys(missingTranslations).length}</span> translations.
+                  </>
               )}
               
             </CardDescription>
@@ -603,6 +619,21 @@ export default function Home() {
                 <DropdownMenuLabel className="flex flex-row gap-2 mt-2">Utilities <HammerIcon /></DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 
+                <DropdownMenuItem onClick={() => {
+                  const modTranslations = modifiedTranslations;
+                  
+                  for (const key in modTranslations) {
+                    if (orphanedTranslations[key] !== undefined) 
+                      delete modTranslations[key];
+                  }
+
+                  setModifiedTranslations(modTranslations);
+                  setOrphanedTranslations({});
+                }}>
+                  <TrashIcon />
+                  Clear Orphaned Translations
+                </DropdownMenuItem>
+
                 <DropdownMenuItem onClick={() => {setImportLanguageOpen(true)}}>
                   <DownloadIcon />
                   Import Translation
@@ -726,8 +757,9 @@ export default function Home() {
           <Tabs defaultValue="missing" onValueChange={handleTabChange} className="w-full">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <TabsList>
-                <TabsTrigger value="missing">Missing Translations</TabsTrigger>
-                <TabsTrigger value="existing">Existing Translations</TabsTrigger>
+                <TabsTrigger value="missing">Missing</TabsTrigger>
+                <TabsTrigger value="existing">Existing</TabsTrigger>
+                <TabsTrigger value="orphaned">Orphaned</TabsTrigger>
               </TabsList>
               
               <div className="flex flex-row">
@@ -804,6 +836,32 @@ export default function Home() {
                         {searchTerm 
                           ? "No existing translations match your search term" 
                           : "No existing translations found"}
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="orphaned">
+              {!processing && (
+                  <>
+                    {Object.keys(orphanedTranslations).length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {Object.entries(orphanedTranslations).map(([key, value]) => (
+                          <div key={key} className="flex flex-row items-center gap-2 my-3">
+                            <Textarea readOnly value={key} /> <ArrowRight className="flex-shrink-0" />
+                            <Textarea readOnly
+                              value={value}
+                              className="w-full"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {searchTerm 
+                          ? "No orphaned translations match your search term" 
+                          : "No orphaned translations found"}
                       </div>
                     )}
                   </>
