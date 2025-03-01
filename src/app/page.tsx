@@ -80,6 +80,7 @@ export default function Home() {
 
   const [lastModifiedTranslations, setLastModifiedTranslations] = React.useState<Record<string, string>>({});
   const [modifiedTranslations, setModifiedTranslations] = React.useState<Record<string, string>>({});
+  const [deletedTranslations, setDeletedTranslations] = React.useState<string[]>([]);
   
   React.useEffect(() => {
     if (!importLanguageOpen) return;
@@ -118,14 +119,17 @@ export default function Home() {
         const parsed = JSON.parse(savedData);
         setModifiedTranslations(parsed);
         setLastModifiedTranslations(parsed);
+        setDeletedTranslations([]);
       } else {
         setModifiedTranslations({});
         setLastModifiedTranslations({});
+        setDeletedTranslations([]);
       }
     } catch (error) {
       console.error('Error loading saved translations:', error);
       setModifiedTranslations({});
       setLastModifiedTranslations({});
+      setDeletedTranslations([]);
     }
   }, [selectedLanguage]);
   
@@ -311,11 +315,15 @@ export default function Home() {
   const getFinalJSON = () => {
     // it gets all that the person has finished
     const finalJSON: Record<string, string> = currentLanguageData ?? {};
-    
+
     for (const key in modifiedTranslations) {
       if (modifiedTranslations[key].trim() === "") continue;
       
       finalJSON[key] = modifiedTranslations[key];
+    }
+
+    for (const key in deletedTranslations) {
+      delete finalJSON[deletedTranslations[key]];
     }
 
     return finalJSON;
@@ -388,6 +396,7 @@ export default function Home() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button variant={"destructive"} disabled={clearTranslationTimeout > 0} onClick={() => {
               setModifiedTranslations({});
+              setDeletedTranslations([]);
               localStorage.setItem(`modifiedTranslations-${selectedLanguage}`, JSON.stringify({}));
               setCurrentPage(1);
               setSearchTerm("");
@@ -621,12 +630,15 @@ export default function Home() {
                 <DropdownMenuSeparator />
                 
                 <DropdownMenuItem onClick={() => {
-                  for (const key in modifiedTranslations) {
-                    if (orphanedTranslations[key] !== undefined) 
-                      delete modifiedTranslations[key];
-                  }
+                  const deleted: string[] = [];
 
+                  for (const key in orphanedTranslations) {
+                    deleted.push(key);
+                    delete modifiedTranslations[key];
+                  }
+     
                   setModifiedTranslations(modifiedTranslations);
+                  setDeletedTranslations(deleted);
                   setOrphanedTranslations({});
                 }}>
                   <TrashIcon />
