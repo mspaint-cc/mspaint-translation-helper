@@ -196,13 +196,17 @@ export default function Home() {
   const getActiveTranslations = () => {
     if (activeTab === "missing") {
       return Object.entries(missingTranslations);
-    } else {
-      const translations =
-        selectedLanguage === "en"
-          ? latestTranslation
-          : currentLanguageData || {};
-      return Object.entries(translations);
     }
+
+    if (activeTab === "orphaned") {
+      return Object.entries(orphanedTranslations);
+    }
+
+    const translations =
+      selectedLanguage === "en"
+        ? latestTranslation
+        : currentLanguageData || {};
+    return Object.entries(translations);
   };
 
   const filteredTranslations = getActiveTranslations().filter(
@@ -855,19 +859,21 @@ export default function Home() {
               </TabsContent>
 
               <TabsContent value="orphaned">
-              {!processing && (
+                {!processing && (
                   <>
-                    {Object.keys(orphanedTranslations).length > 0 ? (
+                    {currentTranslations.length > 0 ? (
                       <div className="flex flex-col gap-2">
-                        {Object.entries(orphanedTranslations).map(([key, value]) => (
-                          <div key={key} className="flex flex-row items-center gap-2 my-3">
-                            <Textarea readOnly value={key} /> <ArrowRight className="flex-shrink-0" />
-                            <Textarea readOnly
-                              value={value}
-                              className="w-full"
-                            />
-                          </div>
-                        ))}
+                        {currentTranslations.map(([key, value]) => {
+                          if (key in orphanedTranslations)
+                            return <div key={key} className="flex flex-row items-center gap-2 my-3">
+                              <Textarea readOnly value={key} /> <ArrowRight className="flex-shrink-0" />
+                              <Textarea readOnly
+                                value={value}
+                                className="w-full"
+                              />
+                            </div>
+                          return <div key={key}></div>;
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
@@ -926,7 +932,10 @@ export default function Home() {
               <Input
                 value={itemsPerPage}
                 onChange={(e) => {
-                  setItemsPerPage(parseInt(e.target.value));
+                  if (parseInt(e.target.value))
+                    setItemsPerPage(parseInt(e.target.value));
+                  else
+                    setItemsPerPage(0);
                 }}
                 type="number"
                 min={1}
