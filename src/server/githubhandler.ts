@@ -24,6 +24,8 @@ export async function publish_translations(translations: Record<string, string>,
     const session = await auth() as Session & { accessToken: string };
     if (!session || !session.accessToken) return;
 
+    const filePath = getLocaleFilePath(lang);
+
     // User info
     const userResponse = await fetch("https://api.github.com/user", {
         headers: {
@@ -126,7 +128,7 @@ export async function publish_translations(translations: Record<string, string>,
         const mainSha = refData.object.sha;
         
         // Create a new branch
-        const branchName = `update-${lang}-translations-${Date.now()}`;
+        const branchName = `update-${lang.replace('-', '-')}-translations-${Date.now()}`;
         const createBranchResponse = await fetch(`https://api.github.com/repos/${username}/translations/git/refs`, {
             method: "POST",
             headers: {
@@ -152,7 +154,7 @@ export async function publish_translations(translations: Record<string, string>,
         }
         
         // Get current file if it exists
-        const fileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${lang}.json`, {
+        const fileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${filePath}`, {
             headers: {
                 Authorization: `token ${session?.accessToken}`,
                 "X-GitHub-Api-Version": "2022-11-28",
@@ -168,7 +170,7 @@ export async function publish_translations(translations: Record<string, string>,
         
         // Update the file in the new branch
         const fileContent = JSON.stringify(translations, null, 2);
-        const updateFileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${lang}.json`, {
+        const updateFileResponse = await fetch(`https://api.github.com/repos/${username}/translations/contents/translations/${filePath}`, {
             method: "PUT",
             headers: {
                 Authorization: `token ${session?.accessToken}`,
@@ -238,11 +240,12 @@ export async function publish_translations(translations: Record<string, string>,
     };
 
     // Get file sha
-    const fileResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/contents/translations/${lang}.json`, {
+    const fileResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/contents/translations/${filePath}`, {
         method: "GET",
         headers: {
             "X-GitHub-Api-Version": "2022-11-28",
             "Accept": "application/vnd.github+json",
+            Authorization: `token ${session?.accessToken}`,
         }
     });
 
@@ -263,7 +266,7 @@ export async function publish_translations(translations: Record<string, string>,
     const fileContent = JSON.stringify(translations, null, 2);
 
     // Update file
-    const commitResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/contents/translations/${lang}.json`, {
+    const commitResponse = await fetch(`https://api.github.com/repos/mspaint-cc/translations/contents/translations/${filePath}`, {
         method: "PUT",
         headers: {
             "X-GitHub-Api-Version": "2022-11-28",
@@ -301,5 +304,16 @@ export async function publish_translations(translations: Record<string, string>,
             }
         }
     }
+}
 
+/**
+ "zh-cn" -> "zh/cn.json"
+ "fr" -> "fr.json"
+ */
+function getLocaleFilePath(locale: string): string {
+    if (locale.includes('-')) {
+        const [main, sub] = locale.split('-');
+        return `${main}/${sub}.json`;
+    }
+    return `${locale}.json`;
 }
