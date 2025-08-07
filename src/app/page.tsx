@@ -369,6 +369,12 @@ export default function Home() {
 
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
+              
+              <Button variant={"secondary"} onClick={() => {
+                toast.info("Text copied successfully.")
+                navigator.clipboard.writeText(importedLanguageRaw);
+              }}>Copy All</Button>
+
               <AlertDialogAction disabled={!importedLanguageDataValid} onClick={() => {
                 const importedData = JSON.parse(importedLanguageRaw);
                 const existingData = currentLanguageData ?? {};
