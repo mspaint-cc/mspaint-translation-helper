@@ -365,33 +365,61 @@ export default function Home() {
             onChange={(newValue) => setImportedLanguageRaw(newValue ?? "")}
           />
           <p>{importedLanguageDataValid ? <span className="text-green-500 text-xs text-right">Valid JSON</span> : <span className="text-red-500 text-xs text-right">Invalid JSON ({importedLanguageDataError})</span>}</p>
-          <div>
+          <div className="flex flex-row justify-center gap-2 *:flex-1">
+            <Button variant={"secondary"} onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".json";
 
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              
-              <Button variant={"secondary"} onClick={() => {
-                toast.info("Editor content copied successfully.")
-                navigator.clipboard.writeText(importedLanguageRaw);
-              }}>Copy All</Button>
-
-              <Button variant={"secondary"} onClick={() => {
+              input.onchange = async (event) => {
                 try {
-                  const blob = new Blob([JSON.stringify(importedLanguageRaw, null, 2)], {type: "application/json;charset=utf-8"});
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = `${selectedLanguage}-ImportEditor.json`;
-                  document.body.appendChild(link);
-                  link.click();
-                  toast.info("Editor content saved to a file successfully.")
-                } catch (error) {
                   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                   //@ts-expect-error
-                  toast.error("Failed to save the editor content to a file: " + error.toString())
-                }
-              }}>Save to a File</Button>
+                  const file = event.target.files[0];
+                  if (!file) return;
 
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    try {
+                      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                      //@ts-expect-error
+                      setImportedLanguageRaw(e.target.result.toString())
+                      toast.success("JSON file imported successfully.");
+                    } catch {
+                      toast.error("Invalid JSON file.");
+                    }
+                  };
+
+                  reader.readAsText(file);
+                } catch {
+                  toast.error("Failed to read the JSON.");
+                }
+              };
+
+              input.click();
+            }}>Import from File</Button>
+
+            <Button variant={"secondary"} onClick={() => {
+              try {
+                const blob = new Blob([JSON.stringify(importedLanguageRaw, null, 2)], {type: "application/json;charset=utf-8"});
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${selectedLanguage}-ImportEditor.json`;
+                document.body.appendChild(link);
+                link.click();
+                toast.info("Editor content saved to a file successfully.")
+              } catch (error) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                //@ts-expect-error
+                toast.error("Failed to save the editor content to a file: " + error.toString())
+              }
+            }}>Save to a File</Button>
+          </div>
+
+          <div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction disabled={!importedLanguageDataValid} onClick={() => {
                 const importedData = JSON.parse(importedLanguageRaw);
                 const existingData = currentLanguageData ?? {};
