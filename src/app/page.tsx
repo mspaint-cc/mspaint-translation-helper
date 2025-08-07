@@ -371,9 +371,26 @@ export default function Home() {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               
               <Button variant={"secondary"} onClick={() => {
-                toast.info("Text copied successfully.")
+                toast.info("Editor content copied successfully.")
                 navigator.clipboard.writeText(importedLanguageRaw);
               }}>Copy All</Button>
+
+              <Button variant={"secondary"} onClick={() => {
+                try {
+                  const blob = new Blob([JSON.stringify(importedLanguageRaw, null, 2)], {type: "application/json;charset=utf-8"});
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `${selectedLanguage}-ImportEditor.json`;
+                  document.body.appendChild(link);
+                  link.click();
+                  toast.info("Editor content saved to a file successfully.")
+                } catch (error) {
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  //@ts-expect-error
+                  toast.error("Failed to save the editor content to a file: " + error.toString())
+                }
+              }}>Save to a File</Button>
 
               <AlertDialogAction disabled={!importedLanguageDataValid} onClick={() => {
                 const importedData = JSON.parse(importedLanguageRaw);
