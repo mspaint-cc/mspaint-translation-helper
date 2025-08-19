@@ -421,9 +421,9 @@ export default function Home() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Import Language</AlertDialogTitle>
+            <AlertDialogTitle>Import Missing Translations</AlertDialogTitle>
             <AlertDialogDescription>
-              Import language data from JSON
+              Import Missing Translations keys from JSON
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -942,7 +942,7 @@ export default function Home() {
                   }}
                 >
                   <DownloadIcon />
-                  Import Translation Keys
+                  Import Missing Translations
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
