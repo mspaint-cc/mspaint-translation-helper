@@ -84,10 +84,8 @@ export default function Home() {
 
   const [importLanguageOpen, setImportLanguageOpen] = React.useState(false);
   const [importedLanguageRaw, setImportedLanguageRaw] = React.useState("");
-  const [importedLanguageDataValid, setImportedLanguageDataValid] =
-    React.useState(false);
-  const [importedLanguageDataError, setImportedLanguageDataError] =
-    React.useState("");
+  const [importedLanguageDataValid, setImportedLanguageDataValid] = React.useState(false);
+  const [importedLanguageDataError, setImportedLanguageDataError] = React.useState("");
 
   const [publishOpen, setPublishOpen] = React.useState(false);
 
@@ -151,6 +149,7 @@ export default function Home() {
       const savedData = localStorage.getItem(
         `modifiedTranslations-${selectedLanguage}`
       );
+
       if (savedData) {
         const parsed = JSON.parse(savedData);
         setModifiedTranslations(parsed);
@@ -449,6 +448,7 @@ export default function Home() {
               </span>
             )}
           </p>
+
           <div className="flex flex-row justify-center gap-2 *:flex-1">
             <Button
               variant={"secondary"}
@@ -498,17 +498,17 @@ export default function Home() {
                   );
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
+
                   link.href = url;
                   link.download = `${selectedLanguage}-ImportEditor.json`;
                   document.body.appendChild(link);
                   link.click();
+
                   toast.info("Editor content saved to a file successfully.");
                 } catch (error) {
-                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                  //@ts-expect-error
                   toast.error(
                     "Failed to save the editor content to a file: " +
-                      error.toString()
+                      (error as Error).toString()
                   );
                 }
               }}
@@ -716,7 +716,7 @@ export default function Home() {
       </AlertDialog>
 
       <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between">
           <div className="flex flex-col gap-2">
             <CardTitle>Edit Translations</CardTitle>
             <CardDescription>
@@ -764,11 +764,20 @@ export default function Home() {
                   Utility <HammerIcon />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                collisionPadding={8}
+                className="sm:w-fit w-[min(92vw,24rem)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain"
+              >
                 <DropdownMenuLabel className="flex flex-row gap-2">
                   Testing <BugIcon />
                 </DropdownMenuLabel>
+
                 <DropdownMenuSeparator />
+
                 <DropdownMenuItem
                   onClick={() => {
                     const finalData = getFinalJSON();
@@ -933,7 +942,7 @@ export default function Home() {
                   }}
                 >
                   <DownloadIcon />
-                  Import Translation
+                  Import Translation Keys
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -946,13 +955,21 @@ export default function Home() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size={"sm"} disabled={selectedLanguage === "en"}>
                   Export/Publish Language <FileJsonIcon />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                collisionPadding={8}
+                className="sm:w-fit w-[min(92vw,24rem)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain"
+              >
                 <DropdownMenuLabel className="flex flex-row gap-2">
                   Export <DownloadIcon />
                 </DropdownMenuLabel>
@@ -1091,6 +1108,7 @@ export default function Home() {
             </DropdownMenu>
           </div>
         </CardHeader>
+
         <div className="p-6">
           <Tabs
             defaultValue="missing"
