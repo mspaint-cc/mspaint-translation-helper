@@ -608,7 +608,7 @@ export default function Home() {
                   if (!translation.includes("%s")) continue;
 
                   const translationValue = finalData[translation];
-                  if (translationValue == "") continue;
+                  if (translationValue == null || translationValue == undefined || translationValue == "") continue;
 
                   const originalFormattedCount =
                     translation.split("%s").length - 1;
