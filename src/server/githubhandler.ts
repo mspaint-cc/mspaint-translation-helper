@@ -208,7 +208,7 @@ export async function publish_translations(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: `feat: updated ${lang} translation`,
+          message: `feat: update ${lang} translation`,
           content: Buffer.from(fileContent).toString("base64"),
           sha: fileSha, // Only included if file exists
           branch: branchName,
@@ -318,7 +318,7 @@ export async function publish_translations(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: `feat: updated ${lang} translation`,
+        message: `feat: update ${lang} translation`,
         content: Buffer.from(fileContent).toString("base64"),
         // If sha is undefined, GitHub will create the file
         sha: fileSha,
