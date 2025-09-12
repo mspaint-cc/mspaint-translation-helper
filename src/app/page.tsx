@@ -61,7 +61,7 @@ import {
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { get_key } from "@/server/datahandler";
-import { publish_translations } from "@/server/githubhandler";
+import { get_write_access, publish_translations } from "@/server/githubhandler";
 import { useSession } from "next-auth/react";
 
 export default function Home() {
@@ -91,6 +91,10 @@ export default function Home() {
   const [importedLanguageDataError, setImportedLanguageDataError] = React.useState("");
 
   const [publishOpen, setPublishOpen] = React.useState(false);
+  const [commitMessage, setCommitMessage] = React.useState<string>("");
+  const [prTitle, setPrTitle] = React.useState<string>("");
+  const [prBody, setPrBody] = React.useState<string>("");
+  const [hasWriteAccess, setHasWriteAccess] = React.useState<boolean | null>(null);
 
   const [missingTranslations, setMissingTranslations] = React.useState<
     Record<string, string>
@@ -133,6 +137,27 @@ export default function Home() {
       });
     }, 1000);
   }, [clearTranslationsOpen]);
+
+  React.useEffect(() => {
+    // When opening publish dialog, seed default messages
+    if (!publishOpen) return;
+    // Check permission when dialog opens
+    (async () => {
+      try {
+        const canWrite = await get_write_access();
+        setHasWriteAccess(Boolean(canWrite));
+      } catch {
+        setHasWriteAccess(false);
+      }
+    })();
+    const defaultCommit = `feat: updated ${selectedLanguage} translation`;
+    const defaultTitle = `Update ${selectedLanguage} translations`;
+    const defaultBody = `This PR updates the translations for ${selectedLanguage}.`;
+
+    setCommitMessage((prev) => (prev?.trim()?.length ? prev : defaultCommit));
+    setPrTitle((prev) => (prev?.trim()?.length ? prev : defaultTitle));
+    setPrBody((prev) => (prev?.trim()?.length ? prev : defaultBody));
+  }, [publishOpen, selectedLanguage]);
 
   React.useEffect(() => {
     try {
@@ -600,6 +625,46 @@ export default function Home() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
+          {/* Commit/PR metadata inputs based on permission */}
+          <div className="space-y-3">
+            {hasWriteAccess === null ? (
+              <p className="text-sm text-muted-foreground">Checking repository permissions…</p>
+            ) : hasWriteAccess ? (
+              <div>
+                <label className="text-sm text-muted-foreground">Commit message</label>
+                <Input
+                  className="mt-1"
+                  value={commitMessage}
+                  onChange={(e) => setCommitMessage(e.target.value)}
+                  placeholder={`feat: updated ${selectedLanguage} translation`}
+                />
+                <p className="text-xs text-muted-foreground mt-1">You have write access, this will be a direct commit.</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-sm text-muted-foreground">PR title</label>
+                  <Input
+                    className="mt-1"
+                    value={prTitle}
+                    onChange={(e) => setPrTitle(e.target.value)}
+                    placeholder={`Update ${selectedLanguage} translations`}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">PR description</label>
+                  <Textarea
+                    className="mt-1"
+                    value={prBody}
+                    onChange={(e) => setPrBody(e.target.value)}
+                    placeholder={`This PR updates the translations for ${selectedLanguage}.`}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">No write access detected. I’ll fork and open a PR.</p>
+              </>
+            )}
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
@@ -628,7 +693,11 @@ export default function Home() {
                 }
 
                 toast.promise(
-                  publish_translations(finalData, selectedLanguage),
+                  publish_translations(finalData, selectedLanguage, {
+                    commitMessage,
+                    prTitle,
+                    prBody,
+                  }),
                   {
                     loading: "Publishing changes...",
                     success: (data) => {

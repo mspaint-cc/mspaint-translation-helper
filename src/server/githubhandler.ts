@@ -9,6 +9,30 @@ interface Fork {
   };
 }
 
+export async function get_write_access(): Promise<boolean> {
+  "use server";
+  try {
+    const session = (await auth()) as Session & { accessToken?: string };
+    if (!session?.accessToken) return false;
+    const response = await fetch(
+      "https://api.github.com/repos/mspaint-cc/translations",
+      {
+        headers: {
+          Authorization: `token ${session.accessToken}`,
+          "X-GitHub-Api-Version": "2022-11-28",
+          Accept: "application/vnd.github+json",
+        },
+        next: { revalidate: 60 * 10 },
+      }
+    );
+    if (!response.ok) return false;
+    const repoData = await response.json();
+    return !!repoData?.permissions?.push;
+  } catch {
+    return false;
+  }
+}
+
 /*
 Ignore this im just breaking down the thingy so this less complicated for me to implement
 
@@ -20,9 +44,16 @@ Ignore this im just breaking down the thingy so this less complicated for me to 
    - if they do then directly modify the file.
 
 */
+type PublishOptions = {
+  commitMessage?: string;
+  prTitle?: string;
+  prBody?: string;
+};
+
 export async function publish_translations(
   translations: Record<string, string>,
-  lang: string
+  lang: string,
+  options?: PublishOptions
 ) {
   const session = (await auth()) as Session & { accessToken: string };
   if (!session || !session.accessToken) return;
@@ -208,7 +239,9 @@ export async function publish_translations(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: `feat: updated ${lang} translation`,
+          message: options?.commitMessage?.trim()
+            ? options.commitMessage
+            : `feat: updated ${lang} translation`,
           content: Buffer.from(fileContent).toString("base64"),
           sha: fileSha, // Only included if file exists
           branch: branchName,
@@ -241,8 +274,12 @@ export async function publish_translations(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: `Update ${lang} translations`,
-          body: `This PR updates the translations for ${lang}.`,
+          title: options?.prTitle?.trim()
+            ? options.prTitle
+            : `Update ${lang} translations`,
+          body: options?.prBody?.trim()
+            ? options.prBody
+            : `This PR updates the translations for ${lang}.`,
           head: `${username}:${branchName}`,
           base: "main",
         }),
@@ -318,7 +355,9 @@ export async function publish_translations(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: `feat: updated ${lang} translation`,
+        message: options?.commitMessage?.trim()
+          ? options.commitMessage
+          : `feat: updated ${lang} translation`,
         content: Buffer.from(fileContent).toString("base64"),
         // If sha is undefined, GitHub will create the file
         sha: fileSha,
