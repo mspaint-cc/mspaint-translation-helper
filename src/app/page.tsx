@@ -12,6 +12,7 @@ import {
   Languages,
   MinusCircle,
   RefreshCcwIcon,
+  RefreshCwIcon,
   Scroll,
   Search,
   SendIcon,
@@ -71,6 +72,8 @@ export default function Home() {
     currentLanguageData,
     currentLanguageDataLoading,
     latestTranslation,
+    clearData,
+    refresh
   } = useTranslation();
 
   const { data: session } = useSession();
@@ -755,6 +758,22 @@ export default function Home() {
           </div>
 
           <div className="flex flex-row gap-2">
+            <Button
+              size={"sm"}
+              disabled={selectedLanguage === "en"}
+              variant={"outline"}
+              onClick={(e) => {
+                e.preventDefault();
+                clearData();
+                refresh();
+                toast.info(
+                  "Data successfully reloaded. If it did not update, you recieved an data from Github's cache."
+                );
+              }}
+            >
+              Reload data from Github <RefreshCwIcon />
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

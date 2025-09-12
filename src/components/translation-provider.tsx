@@ -31,6 +31,7 @@ type TranslationContextType = {
   currentLanguageDataLoading: boolean;
   setSelectedLanguage: (selectedLanguage: string) => void;
   showNewTranslationModal: boolean;
+  clearData: () => void;
   refresh: () => void;
   setShowNewTranslationModal: (showNewTranslationModal: boolean) => void;
   loading: boolean;
@@ -57,6 +58,7 @@ const TranslationContext = React.createContext<TranslationContextType>({
   currentLanguageData: undefined,
   setTranslations: () => {},
   selectedLanguage: "en",
+  clearData: () => {},
   refresh: () => {},
   setSelectedLanguage: () => {},
   showNewTranslationModal: false,
@@ -149,7 +151,7 @@ export function TranslationProvider({
       `${baseURL}/translations/${selectedLanguage.replaceAll("-", "/")}.json`,
       {
         next: {
-          revalidate: 60, // revalidate every 60 seconds
+          revalidate: 15, // revalidate every 15 seconds
         },
       }
     ).then((response) => {
@@ -239,7 +241,7 @@ export function TranslationProvider({
         `${baseURL}/translations/${selectedLanguage.replaceAll("-", "/")}.json`,
         {
           next: {
-            revalidate: 60, // revalidate every 60 seconds
+            revalidate: 15, // revalidate every 15 seconds
           },
         }
       );
@@ -268,6 +270,10 @@ export function TranslationProvider({
     setInternalStartupRefreshKey(internalStartupRefreshKey + 1);
   }, [selectedLanguage]);
 
+  const clearData = () => {
+    localStorage.removeItem("localLanguages");
+  }
+
   const refresh = () => {
     setRefreshKey(refreshKey + 1);
   };
@@ -286,6 +292,7 @@ export function TranslationProvider({
         showNewTranslationModal,
         setShowNewTranslationModal,
         loading,
+        clearData,
         refresh,
       }}
     >
