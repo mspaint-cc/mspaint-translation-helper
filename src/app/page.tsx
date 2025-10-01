@@ -64,6 +64,14 @@ import { get_key } from "@/server/datahandler";
 import { get_write_access, publish_translations } from "@/server/githubhandler";
 import { useSession } from "next-auth/react";
 
+const normalizeEscapedQuotes = (value: string) => {
+  if (!value.includes('\"')) return value;
+  // Remove escape backslashes that precede a quote when they aren't meant to be literal
+  return value.replace(/\\+(?=")/g, (match) =>
+    match.length % 2 === 0 ? match : match.slice(1)
+  );
+};
+
 export default function Home() {
   const {
     loading,
@@ -233,9 +241,10 @@ export default function Home() {
 
   const handleModifiedTranslationChange = React.useCallback(
     (key: string, value: string) => {
+      const normalizedValue = normalizeEscapedQuotes(value);
       setModifiedTranslations((prev) => ({
         ...prev,
-        [key]: value,
+        [key]: normalizedValue,
       }));
     },
     []
